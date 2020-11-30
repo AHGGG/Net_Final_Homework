@@ -198,7 +198,7 @@ void *start_routine(void *arg){
 
 int main()
 {
-	//printf("query statu:%d\n",mysql_find_user_by_useid("5"));
+	////printf("query statu:%d\n",mysql_find_user_by_useid("5"));
 	mysql_test();
 	mysql_output_friend();
 	mysql_output_message();
