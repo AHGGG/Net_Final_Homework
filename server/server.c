@@ -18,7 +18,8 @@
 #define PORT 12344
 #define MAXDATASIZE 50
 #define BACKLOG 5
-
+//duewfbuefhfhefjhwfhfeshfhjerngj
+//cmkngvbgrejgrjngrnrncjesnfjabhbrhbghvgbrgbvj
 static pthread_key_t Key;
 int err;
 static pthread_once_t  once = PTHREAD_ONCE_INIT;
