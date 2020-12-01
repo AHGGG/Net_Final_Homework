@@ -364,7 +364,61 @@ int mysql_add(char *userid, char *pwd, char *otherid){
     }
 }
 
-int mysql_send_message(){}
+/*
+* 发送信息
+* 返回值：-1：官方的错误；0：密码错误 | userid、otherid 为NULL；1：写入message表成功；
+*/
+int mysql_send_message(char *userid, char *pwd, char *otherid, char *message){
+
+    printf("in mysql_send_message\n\n");
+    MYSQL           mysql;
+    MYSQL_RES       *res = NULL;
+    MYSQL_ROW       row;
+    int             rc, i, fields;
+    int             rows;
+
+    if (mysql_init(&mysql) == NULL)      //分配和初始化MYSQL对象
+    {
+        printf("mysql_init(): %s\n", mysql_error(&mysql));
+        return -1;
+    }
+ 
+    if (mysql_real_connect(&mysql,"47.106.35.199","root","Mysql111.","netpro",0,NULL,0) == NULL)
+    {
+        printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
+        return -1;
+    }
+ 
+    row = mysql_find_user_by_useid(userid);//看userid对应的人在不在
+    MYSQL_ROW rowother = mysql_find_user_by_useid(otherid);//看otherid对应的人在不在
+
+    if( rowother == NULL || row == NULL) {
+        printf("userid = %s | otherid = %s 有一个不存在与user表中, 添加失败!!\n",userid, otherid);
+        mysql_close(&mysql);
+        return 0;
+    }
+
+    char            query_str[200];
+    //走到这里，userid otherid都是有对应的人的，那么就验证id pwd。如果id pwd验证通过--->能【发送消息】，否则不能
+    if( (strcmp(row[1], userid)==0) &&  (strcmp(row[2],pwd)==0) ) {//如果找到id 且 pwd相等，就写friend表
+        //在message表中添加表项
+        sprintf(query_str, "insert into message(m_userid, m_otherid, m_message) value( '%d', '%d', '%s')", atoi(userid), atoi(otherid) , message);//添加好友
+        rc = mysql_real_query(&mysql, query_str, strlen(query_str));
+        if (0 != rc) {
+            printf("mysql_real_query(): %s\n", mysql_error(&mysql));
+            return -1;
+        }
+
+        mysql_close(&mysql);
+        return 1;
+
+    }else{
+        printf("发送消息的人密码错误!!!!!!!\n");
+        mysql_close(&mysql);
+        return 0;//如果id pwd没有验证通过，那么就返回0
+    }
+
+}
 
 
 
