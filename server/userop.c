@@ -307,8 +307,6 @@ int mysql_del(char *userid, char *pwd){
 }
 
 //添加好友
-//如果二次添加？？
-//添加好友
 int mysql_add(char *userid, char *pwd, char *otherid){
     printf("in mysql_add\n\n");
     MYSQL           mysql;
@@ -328,10 +326,17 @@ int mysql_add(char *userid, char *pwd, char *otherid){
         printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
         return -1;
     }
-    printf("Connected MySQL successful! \n");
+    //printf("Connected MySQL successful! \n");
  
     row = mysql_find_user_by_useid(userid);
     MYSQL_ROW rowother = mysql_find_user_by_useid(otherid);
+
+    if( rowother == NULL || row == NULL) {
+        printf("userid | otherid有一个不存在与user表中");
+        mysql_close(&mysql);
+        return 0;
+    }
+
     char            query_str[200];
     //如果id pwd验证通过，且 user表中有otherid的这个人就，能加好友，否则不能
     if( (strcmp(row[1], userid)==0) &&  (strcmp(row[2],pwd)==0)  && ( strcmp(rowother[1], otherid)==0)){//如果找到id 且 pwd相等，就写friend表
