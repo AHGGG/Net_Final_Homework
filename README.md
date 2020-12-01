@@ -76,6 +76,11 @@ typedef struct user{
 - core dump2:row = mysql_fetch_row(res);
 > 上面少了这一行，访问row[0]也会core dump，row是 char **类型的东西
 
+#### sprintf 记录
+- sprintf(query_str, "insert into message(m_userid, m_otherid, m_message) value( '%d', '%d', '%s')", atoi(userid), atoi(otherid) , message)
+> 上面的m_message收到的char * 类型的东西，这里传入的时候也要用''框住！！！
+
+
 ### 进度记录
 - 2020-11-24 20:56---->client 根据argv[2]的值1-4判断要干什么，然后发送action，读取id发送id 读pwd，发pwd(相应server，先接受action，然后根据action判断调用哪个业务函数)
 - 2020-11-24 22::20---->添加了发送信息的框架，拿到信息后怎么处理待写

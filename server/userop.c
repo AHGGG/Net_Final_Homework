@@ -402,7 +402,7 @@ int mysql_send_message(char *userid, char *pwd, char *otherid, char *message){
     //走到这里，userid otherid都是有对应的人的，那么就验证id pwd。如果id pwd验证通过--->能【发送消息】，否则不能
     if( (strcmp(row[1], userid)==0) &&  (strcmp(row[2],pwd)==0) ) {//如果找到id 且 pwd相等，就写friend表
         //在message表中添加表项
-        sprintf(query_str, "insert into message(m_userid, m_otherid, m_message) value( '%d', '%d', '%s')", atoi(userid), atoi(otherid) , message);//添加好友
+        sprintf(query_str, "insert into message(m_userid, m_otherid, m_message) value( '%d', '%d', '%s')", atoi(userid), atoi(otherid) , message);
         rc = mysql_real_query(&mysql, query_str, strlen(query_str));
         if (0 != rc) {
             printf("mysql_real_query(): %s\n", mysql_error(&mysql));
