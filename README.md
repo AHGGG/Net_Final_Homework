@@ -66,6 +66,15 @@ typedef struct user{
 #### print_all_user_message 错误 2020-11-27
 - printf的时候，不atoi，就是乱码，atoi了 就是0，不知道咋了！！
 
+#### mysql sprintf记录
+- sprintf(query_str,"select * from %s",table_name);查询表中的内容
+- sprintf(query_str,"insert into user(userid,pwd,stat) value('%s','%s','%d')",id,pwd,0);//向表中插入数据
+
+> 注意插入的收'%s', 查询的时候'%s'
+
+- core dump：**char *query_str = NULL;**这样写就有段错误，**char query_str[100];** 这样写就好的。理解原因：因为sprintf要往里写东西，直接建立指针没有分配空间，就没法往里写，所以就core dump。 **char *query_str = NULL、malloc、memset，之后查出来是乱码说我的sql语句语法有问题？？？怎么回事，不memset查出来是空**
+- core dump2:row = mysql_fetch_row(res);
+> 上面少了这一行，访问row[0]也会core dump，row是 char **类型的东西
 
 ### 进度记录
 - 2020-11-24 20:56---->client 根据argv[2]的值1-4判断要干什么，然后发送action，读取id发送id 读pwd，发pwd(相应server，先接受action，然后根据action判断调用哪个业务函数)

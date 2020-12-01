@@ -73,12 +73,12 @@ int mysql_test( ){
     return 0;
 }
 
-//输出user表中的内容
-int mysql_output_user( ){
+//根据传入的表的名字，查询出表的所有内容打印下来
+int mysql_output_table( char *table_name ){
     MYSQL   mysql;
     MYSQL_RES       *res = NULL;
     MYSQL_ROW       row;
-    char            *query_str = NULL;
+
     int             rc, i, fields;
 
     if (NULL == mysql_init(&mysql)) {    //分配和初始化MYSQL对象
@@ -101,7 +101,10 @@ int mysql_output_user( ){
  
     printf("Connected MySQL successful! \n");
  
-    query_str = "select * from user";
+    //query_str = "select * from user";
+    char query_str[100];
+    sprintf(query_str,"select * from %s",table_name);
+
     printf("%s\n", query_str);
     rc = mysql_real_query(&mysql, query_str, strlen(query_str));
     if (0 != rc) {
@@ -129,17 +132,17 @@ int mysql_output_user( ){
     return 0;
 }
 
-//输出friend表中的内容
-int mysql_output_friend( ){
-    MYSQL   mysql;
-    MYSQL_RES       *res = NULL;
-    MYSQL_ROW       row;
-    char            *query_str = NULL;
-    int             rc, i, fields;
+//根据传入的userid，查询user表，返回对应的那一行数据
+//row[0]-->id row[1]-->userid row[2]-->pwd row[3]-->stat
+MYSQL_ROW mysql_find_user_by_useid( char *userid ){
+    MYSQL mysql;
+    MYSQL_RES *res = NULL;
+    MYSQL_ROW  row;
+    int rc, i, fields;
 
     if (NULL == mysql_init(&mysql)) {    //分配和初始化MYSQL对象
         printf("mysql_init(): %s\n", mysql_error(&mysql));
-        return -1;
+        return NULL;
     }
  
     //尝试与运行在主机上的MySQL数据库引擎建立连接
@@ -152,143 +155,29 @@ int mysql_output_friend( ){
                 NULL,
                 0)) {
         printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
-        return -1;
-    }
- 
-    printf("Connected MySQL successful! \n");
- 
-    query_str = "select * from friend";
-        printf("%s\n", query_str);
-    rc = mysql_real_query(&mysql, query_str, strlen(query_str));
-    if (0 != rc) {
-        printf("mysql_real_query(): %s\n", mysql_error(&mysql));
-        return -1;
-    }
-    res = mysql_store_result(&mysql);
-    if (NULL == res) {
-         printf("mysql_restore_result(): %s\n", mysql_error(&mysql));
-         return -1;
-    }
-    uint64_t rows;
-    rows = mysql_num_rows(res);
-    printf("The total rows is: %d\n", rows);
-    fields = mysql_num_fields(res);
-    printf("The total fields is: %d\n", fields);
-    while ((row = mysql_fetch_row(res))) {
-        for (i = 0; i < fields; i++) {
-            printf("%s\t", row[i]);
-        }
-        printf("\n");
-    }
-
-    mysql_close(&mysql);
-    return 0;
-}
-
-//输出message表中的内容
-int mysql_output_message( ){
-    MYSQL   mysql;
-    MYSQL_RES       *res = NULL;
-    MYSQL_ROW       row;
-    char            *query_str = NULL;
-    int             rc, i, fields;
-
-    if (NULL == mysql_init(&mysql)) {    //分配和初始化MYSQL对象
-        printf("mysql_init(): %s\n", mysql_error(&mysql));
-        return -1;
-    }
- 
-    //尝试与运行在主机上的MySQL数据库引擎建立连接
-    if (NULL == mysql_real_connect(&mysql,
-                "47.106.35.199",
-                "root",
-                "Mysql111.",
-                "netpro",
-                0,
-                NULL,
-                0)) {
-        printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
-        return -1;
-    }
- 
-    printf("Connected MySQL successful! \n");
- 
-    query_str = "select * from message";
-       printf("%s\n", query_str);
-    rc = mysql_real_query(&mysql, query_str, strlen(query_str));
-    if (0 != rc) {
-        printf("mysql_real_query(): %s\n", mysql_error(&mysql));
-        return -1;
-    }
-    res = mysql_store_result(&mysql);
-    if (NULL == res) {
-         printf("mysql_restore_result(): %s\n", mysql_error(&mysql));
-         return -1;
-    }
-    uint64_t rows;
-    rows = mysql_num_rows(res);
-    printf("The total rows is: %d\n", rows);
-    fields = mysql_num_fields(res);
-    printf("The total fields is: %d\n", fields);
-    while ((row = mysql_fetch_row(res))) {
-        for (i = 0; i < fields; i++) {
-            printf("%s\t", row[i]);
-        }
-        printf("\n");
-    }
-
-    mysql_close(&mysql);
-    return 0;
-}
-
-int mysql_find_user_by_useid(char *userid){
-    MYSQL   mysql;
-    MYSQL_RES       *res = NULL;
-    MYSQL_ROW       row;
-    int             rc, i, fields;
-
-    if (NULL == mysql_init(&mysql)) {    //分配和初始化MYSQL对象
-        printf("mysql_init(): %s\n", mysql_error(&mysql));
-        return -1;
-    }
- 
-    //尝试与运行在主机上的MySQL数据库引擎建立连接
-    if (NULL == mysql_real_connect(&mysql,
-                "47.106.35.199",
-                "root",
-                "Mysql111.",
-                "netpro",
-                0,
-                NULL,
-                0)) {
-        printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
-        return -1;
+        return NULL;
     }
  
     printf("Connected MySQL successful! \n");
 
-    char * query_str = "";
-    query_str = "select userid from user where userid =";
-    int length = strlen( query_str ) + strlen( userid ) +1;
-    char *new_query = malloc( length );
-    strcat( new_query, query_str );
-    strcat( new_query, userid ); 
+    char query_str[100];
+    sprintf( query_str, "select * from user where userid = '%d'", atoi(userid) );
 
-    printf("new_query = %s\n", new_query);
+    printf("new_query = %s\n", query_str);
     rc = mysql_real_query(&mysql, query_str, strlen(query_str));
     if (0 != rc) {
         printf("mysql_real_query(): %s\n", mysql_error(&mysql));
-        return -1;
+        return NULL;
     }
     res = mysql_store_result(&mysql);
     if (NULL == res) {
          printf("mysql_restore_result(): %s\n", mysql_error(&mysql));
-         return -1;
+         return NULL;
     }
     uint64_t rows;
-    rows = mysql_num_rows(res);
+    rows = mysql_num_rows(res);//就是有几行
     printf("The total rows is: %d\n", rows);
-    fields = mysql_num_fields(res);
+    fields = mysql_num_fields(res);//就是有几列
     printf("The total fields is: %d\n", fields);
     /*while ((row = mysql_fetch_row(res))) {
         for (i = 0; i < fields; i++) {
@@ -296,17 +185,17 @@ int mysql_find_user_by_useid(char *userid){
         }
         printf("\n");
     }*/
-
-    if( strcpy(row[0], userid) == 0 ){
+    row = mysql_fetch_row(res);//少了这一行，访问row[0]也会core dump
+    
+    //row[0]-->id row[1]-->userid row[2]-->pwd row[3]-->stat
+    if( strcmp(row[1], userid) == 0 ){
         mysql_close(&mysql);
-        return 1;
+        return row;//返回查到的那一行数据
     }
     else{
         mysql_close(&mysql);
-        return 0;
+        return NULL;
     }
-    free(new_query);
-
 }
 
 
