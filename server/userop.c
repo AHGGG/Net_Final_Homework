@@ -243,7 +243,8 @@ int mysql_register(char *id , char *pwd){
 
 int mysql_login(){}
 
-//注销
+//注销函数，先注销有关id的message，再注销有关userid的朋友表，最后注销user中的表项
+//如果二次注销？？
 int mysql_del(char *userid, char *pwd){
     printf("in mysql_del\n\n");
     MYSQL           mysql;
@@ -305,7 +306,49 @@ int mysql_del(char *userid, char *pwd){
     return 0;
 }
 
-int mysql_add(){}
+//添加好友
+//如果二次添加？？
+//添加好友
+int mysql_add(char *userid, char *pwd, char *otherid){
+    printf("in mysql_add\n\n");
+    MYSQL           mysql;
+    MYSQL_RES       *res = NULL;
+    MYSQL_ROW       row;
+    int             rc, i, fields;
+    int             rows;
+ 
+    if (mysql_init(&mysql) == NULL)      //分配和初始化MYSQL对象
+    {
+        printf("mysql_init(): %s\n", mysql_error(&mysql));
+        return -1;
+    }
+ 
+    if (mysql_real_connect(&mysql,"47.106.35.199","root","Mysql111.","netpro",0,NULL,0) == NULL)
+    {
+        printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
+        return -1;
+    }
+    printf("Connected MySQL successful! \n");
+ 
+    row = mysql_find_user_by_useid(userid);
+    MYSQL_ROW rowother = mysql_find_user_by_useid(otherid);
+    char            query_str[200];
+    //如果id pwd验证通过，且 user表中有otherid的这个人就，能加好友，否则不能
+    if( (strcmp(row[1], userid)==0) &&  (strcmp(row[2],pwd)==0)  && ( strcmp(rowother[1], otherid)==0)){//如果找到id 且 pwd相等，就写friend表
+        //在friend表中添加表项
+        sprintf(query_str, "insert into friend(f_userid,f_otherid) value( '%d', '%d')", atoi(userid), atoi(otherid) );//添加好友
+        rc = mysql_real_query(&mysql, query_str, strlen(query_str));
+        if (0 != rc) {
+            printf("mysql_real_query(): %s\n", mysql_error(&mysql));
+            return -1;
+        }
+        mysql_close(&mysql);
+        return 1;
+    }else{
+        mysql_close(&mysql);
+        return 0;//如果id pwd没有验证通过，那么就返回0
+    }
+}
 
 int mysql_send_message(){}
 
