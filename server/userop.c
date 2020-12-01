@@ -132,9 +132,9 @@ int mysql_output_table( char *table_name ){
     return 0;
 }
 
-//根据传入的userid，查询user表，返回对应的那一行数据
-//row[0]-->id row[1]-->userid row[2]-->pwd row[3]-->stat
+//没有查到返回的就是NULL
 MYSQL_ROW mysql_find_user_by_useid( char *userid ){
+    printf("in mysql_find_user_by_userid\n\n");
     MYSQL mysql;
     MYSQL_RES *res = NULL;
     MYSQL_ROW  row;
@@ -158,12 +158,12 @@ MYSQL_ROW mysql_find_user_by_useid( char *userid ){
         return NULL;
     }
  
-    printf("Connected MySQL successful! \n");
+    //printf("Connected MySQL successful! \n");
 
     char query_str[100];
     sprintf( query_str, "select * from user where userid = '%d'", atoi(userid) );
 
-    printf("new_query = %s\n", query_str);
+    printf("mysql_find_user_by_useid = %s\n\n", query_str);
     rc = mysql_real_query(&mysql, query_str, strlen(query_str));
     if (0 != rc) {
         printf("mysql_real_query(): %s\n", mysql_error(&mysql));
@@ -175,10 +175,13 @@ MYSQL_ROW mysql_find_user_by_useid( char *userid ){
          return NULL;
     }
     uint64_t rows;
-    rows = mysql_num_rows(res);//就是有几行
-    printf("The total rows is: %d\n", rows);
-    fields = mysql_num_fields(res);//就是有几列
-    printf("The total fields is: %d\n", fields);
+    rows = mysql_num_rows(res);
+    fields = mysql_num_fields(res);
+    printf("The total rows is: %d , the total fields is: %d\n", rows,fields);
+    if( rows == 0 ) {
+        mysql_close(&mysql);
+        return NULL;
+    }
     /*while ((row = mysql_fetch_row(res))) {
         for (i = 0; i < fields; i++) {
             printf("%s\t", row[i]);
@@ -243,8 +246,10 @@ int mysql_register(char *id , char *pwd){
 
 int mysql_login(){}
 
-//注销函数，先注销有关id的message，再注销有关userid的朋友表，最后注销user中的表项
-//如果二次注销？？
+/*
+* 注销
+* 返回值：-1是官方的错误；0：id pwd不等；1：删除成功
+*/
 int mysql_del(char *userid, char *pwd){
     printf("in mysql_del\n\n");
     MYSQL           mysql;
@@ -264,10 +269,16 @@ int mysql_del(char *userid, char *pwd){
         printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
         return -1;
     }
-    printf("Connected MySQL successful! \n");
+    //printf("Connected MySQL successful! \n");
  
     row = mysql_find_user_by_useid(userid);
     char            query_str[200];
+    if( row == NULL ){
+        //说明没有在user表中找到userid对应的人，就直接返回
+        printf("没有找到要del的人\n");
+        mysql_close(&mysql);
+        return 0;//如果没有验证通过，那么就返回0
+    }
     if( (strcmp(row[1], userid)==0) &&  (strcmp(row[2],pwd)==0)  ){//如果找到id 且 pwd相等，那么删除id为userid的数据
 
         //删除id为5的数据
@@ -289,24 +300,22 @@ int mysql_del(char *userid, char *pwd){
         rc = mysql_real_query(&mysql, query_str, strlen(query_str));
         if (0 != rc) {
             printf("mysql_real_query(): %s\n", mysql_error(&mysql));
-            
-            return 1;
+            return -1;
         }
+
+        mysql_close(&mysql);
+        return 1;
     }else{
+        printf("id pwd不匹配\n");
+        mysql_close(&mysql);
         return 0;//如果没有验证通过，那么就返回0
     }
-
-    //输出看一下结果
-    mysql_output_table("user");
-    mysql_output_table("friend");
-    mysql_output_table("message");
-    
-    mysql_close(&mysql);
-    printf("out mysql_del\n\n");
-    return 0;
 }
 
-//添加好友
+/*
+* 添加好友
+* 返回值：-1是官方的错误；0：id pwd不等 | userid 、otherid有一个不存在与user表中；1：删除成功
+*/
 int mysql_add(char *userid, char *pwd, char *otherid){
     printf("in mysql_add\n\n");
     MYSQL           mysql;
@@ -332,14 +341,14 @@ int mysql_add(char *userid, char *pwd, char *otherid){
     MYSQL_ROW rowother = mysql_find_user_by_useid(otherid);
 
     if( rowother == NULL || row == NULL) {
-        printf("userid | otherid有一个不存在与user表中");
+        printf("userid = %s | otherid = %s 有一个不存在与user表中, 添加失败!!\n",userid, otherid);
         mysql_close(&mysql);
         return 0;
     }
 
     char            query_str[200];
-    //如果id pwd验证通过，且 user表中有otherid的这个人就，能加好友，否则不能
-    if( (strcmp(row[1], userid)==0) &&  (strcmp(row[2],pwd)==0)  && ( strcmp(rowother[1], otherid)==0)){//如果找到id 且 pwd相等，就写friend表
+    //走到这里，userid otherid都是有对应的人的，那么就验证id pwd。如果id pwd验证通过--->能加好友，否则不能
+    if( (strcmp(row[1], userid)==0) &&  (strcmp(row[2],pwd)==0) ) {//如果找到id 且 pwd相等，就写friend表
         //在friend表中添加表项
         sprintf(query_str, "insert into friend(f_userid,f_otherid) value( '%d', '%d')", atoi(userid), atoi(otherid) );//添加好友
         rc = mysql_real_query(&mysql, query_str, strlen(query_str));
