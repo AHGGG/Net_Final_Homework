@@ -237,7 +237,7 @@ int mysql_register(char *id , char *pwd){
 	printf("mysql_real_query():%s\n",mysql_error(&mysql));
 	return -1;
     }
-    mysql_output_user();
+    mysql_output_table("user");
     return 1;
 }
 
@@ -293,9 +293,9 @@ int mysql_del(char *userid, char *pwd){
     }
 
     //输出看一下结果
-    mysql_output_user();
-    mysql_output_friend();
-    mysql_output_message();
+    mysql_output_table("user");
+    mysql_output_table("friend");
+    mysql_output_table("message");
     
     mysql_close(&mysql);
     return 0;

@@ -199,9 +199,9 @@ void *start_routine(void *arg){
 int main()
 {
 	//printf("query statu:%d\n",mysql_find_user_by_useid("5"));
-	mysql_test();
-	mysql_output_friend();
-	mysql_output_message();
+	mysql_output_table("user");
+	mysql_output_table("friend");
+	mysql_output_table("message");
 	
 //	Linklist_User *head,*tail;
 //	initdlinklist(head,tail);	   
