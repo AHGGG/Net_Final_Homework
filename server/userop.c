@@ -243,11 +243,12 @@ int mysql_register(char *id , char *pwd){
 
 int mysql_login(){}
 
+//注销
 int mysql_del(char *userid, char *pwd){
+    printf("in mysql_del\n\n");
     MYSQL           mysql;
     MYSQL_RES       *res = NULL;
     MYSQL_ROW       row;
-    char            query_str[200];
     int             rc, i, fields;
     int             rows;
  
@@ -264,24 +265,26 @@ int mysql_del(char *userid, char *pwd){
     }
     printf("Connected MySQL successful! \n");
  
-    if( 1 ){//如果找到id 且 pwd相等，那么删除id为userid的数据
+    row = mysql_find_user_by_useid(userid);
+    char            query_str[200];
+    if( (strcmp(row[1], userid)==0) &&  (strcmp(row[2],pwd)==0)  ){//如果找到id 且 pwd相等，那么删除id为userid的数据
 
         //删除id为5的数据
-        sprintf(query_str, "delete from message where m_userid = '5' or m_otherid = '5'");//删除5发的，5收的信息
+        sprintf(query_str, "delete from message where m_userid = '%d' or m_otherid = '%d'", atoi(userid), atoi(userid));//删除5发的，5收的信息
         rc = mysql_real_query(&mysql, query_str, strlen(query_str));
         if (0 != rc) {
             printf("mysql_real_query(): %s\n", mysql_error(&mysql));
             return -1;
         }
     
-        sprintf(query_str, "delete from friend where f_userid = '5' or f_otherid = '5'");//删除5的朋友，删除朋友是5的行
+        sprintf(query_str, "delete from friend where f_userid = '%d' or f_otherid = '%d'", atoi(userid), atoi(userid));//删除5的朋友，删除朋友是5的行
         rc = mysql_real_query(&mysql, query_str, strlen(query_str));
         if (0 != rc) {
             printf("mysql_real_query(): %s\n", mysql_error(&mysql));
             return -1;
         }
 
-        sprintf(query_str, "delete from user where userid = '5'");//最后删除用户id为5的行
+        sprintf(query_str, "delete from user where userid = '%d'", atoi(userid));//最后删除用户id为5的行
         rc = mysql_real_query(&mysql, query_str, strlen(query_str));
         if (0 != rc) {
             printf("mysql_real_query(): %s\n", mysql_error(&mysql));
@@ -298,6 +301,7 @@ int mysql_del(char *userid, char *pwd){
     mysql_output_table("message");
     
     mysql_close(&mysql);
+    printf("out mysql_del\n\n");
     return 0;
 }
 
