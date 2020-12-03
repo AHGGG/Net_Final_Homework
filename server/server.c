@@ -15,30 +15,15 @@
 #include "userop.h"
 #include "link_op.h"
 
-#define PORT 12344
-#define MAXDATASIZE 50
+#define PORT 12345
+#define SIZE 64
+#define MAXDATASIZE 200
 #define BACKLOG 5
 
 static pthread_key_t Key;
 int err;
 static pthread_once_t  once = PTHREAD_ONCE_INIT;
-//Linklist_User *head,*tail;//新建一个linklist_user头结点
 
-
-
-//遍历此时注册的用户
-/*void bianli_c()
-{
-	Linklist_User *bianl=head;
-	bianl = bianl->next;
-//	bianl=bianl->next;
-	while(bianl != NULL)
-	{
-		printf("%s\n",bianl->id);
-		bianl = bianl->next;
-	}
-}
-*/
 void destr(void *arg){
 	printf("destroy memory, pthread_self is %ld\n\n",pthread_self());
 	free(arg);
@@ -87,6 +72,32 @@ void read_id_oid_message(int connectfd, int *numbytes, char *idbuffer, char *oth
 	printf("thread %ld recv message : %s\n",pthread_self(),message);	
 }
 
+/*
+*写文件
+* 
+*/
+int write_file(int sockfd, char *namebuffer){
+  int n;
+  FILE *fp;
+  char *filename = namebuffer;
+  char buffer[SIZE];
+
+	fp = fopen(filename, "w");
+	while (1) {
+		n = recv(sockfd, buffer, SIZE, 0);
+		//printf("recvonce ");
+    if (n <= 0){
+		break;
+		return 0;
+	}
+	fprintf(fp, "%s", buffer);
+	bzero(buffer, SIZE);
+	}
+	fclose(fp);
+	return 1;
+}
+
+
 //判断action是什么，然后调用相应的业务函数
 void action(int connectfd, int *numbytes, char *idbuffer,char *pwdbuffer,char *actbuffer,char *messagebuffer){
 
@@ -96,7 +107,8 @@ void action(int connectfd, int *numbytes, char *idbuffer,char *pwdbuffer,char *a
 			read_once(connectfd, numbytes, idbuffer);//读id
 			if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
 			read_once(connectfd, numbytes, pwdbuffer);//读pwd
-		        mysql_register(idbuffer,pwdbuffer);	
+		    
+			mysql_register(idbuffer,pwdbuffer);	
 			//reg(head,tail,idbuffer, pwdbuffer);
 			//traverselist(head,tail);
 			break;
@@ -106,7 +118,7 @@ void action(int connectfd, int *numbytes, char *idbuffer,char *pwdbuffer,char *a
 			if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
 			read_once(connectfd, numbytes, pwdbuffer);//读pwd
 
-			login(idbuffer, pwdbuffer);
+			mysql_login(idbuffer, pwdbuffer);
 			break;
 		case 3://del
 			read_once(connectfd, numbytes, idbuffer);//读id
@@ -144,6 +156,14 @@ void action(int connectfd, int *numbytes, char *idbuffer,char *pwdbuffer,char *a
 			//对上面收到的信息进行处理
 			
 			//sendmessage(idbuffer,pwdbuffer,messagebuffer);
+			break;
+		case 6://有人要发送文件
+			read_once(connectfd, numbytes, messagebuffer);//读filename
+			if( strlen(messagebuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
+			int write_ok = write_file(connectfd, messagebuffer);
+			printf("write_ok = %d", write_ok );
+
+			printf("[+]Data written in the file successfully.\n");
 			break;
 		default :
 			default_branch();

@@ -15,6 +15,7 @@
 #define TRUE 1
 #define FALSE 0
 
+
 //下面这个是测试mysql连接成功与否的函数
 int mysql_test( ){
     MYSQL   mysql;
@@ -244,7 +245,43 @@ int mysql_register(char *id , char *pwd){
     return 1;
 }
 
-int mysql_login(){}
+int mysql_login(char *userid , char *pwd){
+	
+    MYSQL           mysql;
+    MYSQL_RES       *res = NULL;
+    MYSQL_ROW       row;
+    char            query_str[200];
+    int             rc, i, fields;
+    int             rows;
+ 
+    if (mysql_init(&mysql) == NULL)      //分配和初始化MYSQL对象
+    {
+        printf("mysql_init(): %s\n", mysql_error(&mysql));
+        return -1;
+    }
+ 
+    if (mysql_real_connect(&mysql,"47.106.35.199","root","Mysql111.","netpro",0,NULL,0) == NULL)
+    {
+        printf("mysql_real_connect(): %s\n", mysql_error(&mysql));
+        return -1;
+    }
+    printf("Conneted MYSQL successful!\n");
+    row = mysql_find_user_by_useid(userid );
+    if(strlen(row)<=0)
+    	return -1;
+    else
+    {
+	if(strcmp(row[2],pwd)==0)
+		printf("login is successful!\n");
+	else
+	{
+		printf("error!\n");
+		return -1;
+	}
+    }
+    mysql_output_table("user");
+    return 2;
+}
 
 /*
 * 注销
@@ -423,97 +460,6 @@ int mysql_send_message(char *userid, char *pwd, char *otherid, char *message){
 
 
 
-
-//Linklist_User *head,*p1,*p2;
-void visit(int c){
- 	 printf("%d ",c);
-}
-//创建第一个节点，用作链表头部,也即双向链表初始化
-int initdlinklist(Linklist_User *head, Linklist_User *tail)
-{
-    head=(Linklist_User *)malloc(len);
-    tail=(Linklist_User *)malloc(len);
-    if(!(head)||!(tail))
-        return ERROR;
-    /*这一步很关键*/ 
-    head->pre=NULL;
-    tail->next=NULL;
-    /*链表为空时让头指向尾*/
-    head->next=tail;
-    tail->pre=head;
-}
-/*判定是否为空*/
-int emptylinklist(Linklist_User *head,Linklist_User *tail){
-    if(head->next==tail)
-        return TRUE;
-    else
-        return FALSE;
-} 
-/*尾插法创建链表*/ 
-int reg(Linklist_User *head,Linklist_User *tail,char *data,char *passwd){
-    Linklist_User *pmove=tail,*pinsert;
-    pinsert=(Linklist_User *)malloc(len);
-    pinsert->id=data;
-    pinsert->pwd=passwd;
-    pinsert->next=NULL;
-    pinsert->pre=NULL;
-    tail->pre->next=pinsert;
-    pinsert->pre=tail->pre;
-    pinsert->next=tail;
-    tail->pre=pinsert;
-    return 1;
-} 
-/*正序打印链表*/ 
-int traverselist(Linklist_User *head,Linklist_User *tail){
-    Linklist_User  *pmove=head->next;
-    while(pmove!=tail){
-        printf("%d\t",pmove->id);
-        pmove=pmove->next;
-    }
-    printf("\n");
-}
-/*
-int reg(char *id, char *pwd){
-	//Linklist_User *t; //用来遍历;
-        Linklist_User *user = head;//用来便利linklist的
-	while(user!=NULL)
-	{
-		if(strcmp(user->id,id)==0)
-		{
-			printf("it has exist！");
-			break;
-                }
-
-		user = user->next;
-	}	
-	if(user == NULL)
-	{
-		int ID = atoi(id);
-		if(ID<=0)
-		{		
-			printf("error\n");
-			return 0;
-		}
-		else
-		{
-			p1 = (Linklist_User *)malloc(len);
-			p1->id = id;
-			p1->pwd = pwd;
-			p1->message = NULL;
-			p1->stat = 0;
-			p1->pre = p2;
-			p2 = p1;
-			p2->next = NULL;
-			memset( (void*)p1->friendlist, 0, sizeof(p1->friendlist));
-		}
-	
-
-	}
-//	bianli_c();
-//	bianli_c();	
-	return 1;
-}
-*/
 /* i* 返回1，找到id pwd匹配的；返回0，登陆失败
 */
 int login(char *id, char *pwd){
