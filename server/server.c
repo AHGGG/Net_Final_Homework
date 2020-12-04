@@ -13,26 +13,29 @@
 
 #include "typess.h"
 #include "userop.h"
-#include "link_op.h"
 
 #define PORT 12345
 #define SIZE 64
 #define MAXDATASIZE 200
 #define BACKLOG 5
 
-static pthread_key_t Key;
-int err;
-static pthread_once_t  once = PTHREAD_ONCE_INIT;
-
+/**
+ * @brief 线程摧毁时调用的函数
+ * 
+ * @param arg 
+ */
 void destr(void *arg){
 	printf("destroy memory, pthread_self is %ld\n\n",pthread_self());
 	free(arg);
 }
 
-void thread_init(){
-	pthread_key_create(&Key,destr);
-}
-
+/**
+ * @brief 从connectfd recv一次数据
+ * 
+ * @param connectfd 
+ * @param numbytes 
+ * @param buffer 
+ */
 void recvdata(int connectfd, int *numbytes, char *buffer){
 	if( (*numbytes = recv(connectfd,buffer,MAXDATASIZE,0)) == -1  ){
 		perror("recv error.");
@@ -41,41 +44,26 @@ void recvdata(int connectfd, int *numbytes, char *buffer){
 	buffer[*numbytes] = '\0';
 }
 
-void read_id_pwd(int connectfd, int *numbytes, char *idbuffer, char *pwdbuffer){
-	printf("等待输入ID\n");
-	recvdata(connectfd,numbytes,idbuffer);
-	printf("thread %ld recv name : %s\n",pthread_self(),idbuffer);
-
-	printf("等待输入密码\n");
-	recvdata(connectfd,numbytes,pwdbuffer);
-	printf("thread %ld recv message : %s\n",pthread_self(),pwdbuffer);
-}
-
+/**
+ * @brief 从connectfd读取一次信息然后输出
+ * 
+ * @param connectfd 
+ * @param numbytes 
+ * @param buffer 
+ */
 void read_once(int connectfd, int *numbytes, char *buffer){
 	memset(buffer,0,sizeof(buffer));
 	recvdata(connectfd,numbytes,buffer);
 	printf("thread %ld recv message: %s\n",pthread_self(),buffer);
 }
 
-//读id--->idbuffer，读发往的id--->otheridbuffer，读信息--->message
-void read_id_oid_message(int connectfd, int *numbytes, char *idbuffer, char *otheridbuffer, char *message){
-	printf("等待输入ID\n");
-	recvdata(connectfd,numbytes,idbuffer);
-	printf("thread %ld recv name : %s\n",pthread_self(),idbuffer);
-
-	printf("等待输入发往的id\n");
-	recvdata(connectfd,numbytes,otheridbuffer);
-	printf("thread %ld recv message : %s\n",pthread_self(),otheridbuffer);	
-
-	printf("等待发送的信息\n");
-	recvdata(connectfd,numbytes,message);
-	printf("thread %ld recv message : %s\n",pthread_self(),message);	
-}
-
-/*
-*写文件
-* 
-*/
+/**
+ * @brief 写文件函数
+ * 
+ * @param sockfd connectfd
+ * @param namebuffer 文件名
+ * @return int 
+ */
 int write_file(int sockfd, char *namebuffer){
   int n;
   FILE *fp;
@@ -97,73 +85,115 @@ int write_file(int sockfd, char *namebuffer){
 	return 1;
 }
 
+/**
+ * @brief 读取id 发送确认，读取pwd 发送确认。读取otherid 发送确认(可选)
+ * 
+ * @param connectfd 
+ * @param numbytes 
+ * @param idbuffer 
+ * @param pwdbuffer 
+ * @param otherid 
+ * @param readotherid 
+ */
+void read_id_pwd_otherid(int connectfd, int *numbytes, char *idbuffer,char *pwdbuffer, char *otherid, int readotherid){
+			if( readotherid ){
+				read_once(connectfd, numbytes, idbuffer);//读id
+				if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
 
-//判断action是什么，然后调用相应的业务函数
+				read_once(connectfd, numbytes, pwdbuffer);//读pwd
+				if( strlen(pwdbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
+
+				read_once(connectfd, numbytes, otherid);//读otherid
+				if( strlen(otherid) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
+			}else{
+				read_once(connectfd, numbytes, idbuffer);//读id
+				if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
+				read_once(connectfd, numbytes, pwdbuffer);//读pwd
+			}
+}
+
+/**
+ * @brief 判断action是什么，然后调用相应的业务函数
+ * 
+ * @param connectfd 
+ * @param numbytes 
+ * @param idbuffer 
+ * @param pwdbuffer 
+ * @param actbuffer 
+ * @param messagebuffer 
+ */
 void action(int connectfd, int *numbytes, char *idbuffer,char *pwdbuffer,char *actbuffer,char *messagebuffer){
 
 	switch( atoi(actbuffer) ){
 		case 1://register
-			//read_id_pwd(connectfd,numbytes,idbuffer,pwdbuffer);
-			read_once(connectfd, numbytes, idbuffer);//读id
-			if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-			read_once(connectfd, numbytes, pwdbuffer);//读pwd
-		    
+		    read_id_pwd_otherid(connectfd, numbytes, idbuffer, pwdbuffer, actbuffer, 0);
 			mysql_register(idbuffer,pwdbuffer);	
-			//reg(head,tail,idbuffer, pwdbuffer);
-			//traverselist(head,tail);
+			if( mysql_register(idbuffer,pwdbuffer) ) {
+				send(connectfd, "注册成功", strlen( "注册成功" ), 0);
+				}else {
+					send(connectfd, "注册失败", strlen( "注册失败" ), 0);
+			}
 			break;
 		case 2://login
-			//client 两个send的东西，被一次recv了 ，这里，read_id_pwd(connectfd,numbytes,idbuffer,pwdbuffer);
-			read_once(connectfd, numbytes, idbuffer);//读id
-			if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-			read_once(connectfd, numbytes, pwdbuffer);//读pwd
-
-			mysql_login(idbuffer, pwdbuffer);
+			read_id_pwd_otherid(connectfd, numbytes, idbuffer, pwdbuffer, actbuffer, 0);
+			if( mysql_login(idbuffer, pwdbuffer) ) {
+				send(connectfd, "登录成功", strlen( "登录成功" ), 0);
+				}else {
+					send(connectfd, "登录失败", strlen( "登录失败" ), 0);
+			}
 			break;
 		case 3://del
-			read_once(connectfd, numbytes, idbuffer);//读id
-			if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-			read_once(connectfd, numbytes, pwdbuffer);//读pwd
-
-			//del(idbuffer, pwdbuffer);
-			mysql_del(idbuffer, pwdbuffer);
+			read_id_pwd_otherid(connectfd, numbytes, idbuffer, pwdbuffer, actbuffer, 0);
+			if( mysql_del(idbuffer, pwdbuffer ) ){
+				send(connectfd, "注销成功", strlen( "注销成功" ), 0);
+				}else {
+					send(connectfd, "注销失败", strlen( "注销失败" ), 0);
+			}
 			break;
 		case 4://add
-			read_once(connectfd, numbytes, idbuffer);//读id
-			if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
+			read_id_pwd_otherid(connectfd,numbytes, idbuffer, pwdbuffer, actbuffer, 1);
 
-			read_once(connectfd, numbytes, pwdbuffer);//读pwd
-			if( strlen(pwdbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-
-			read_once(connectfd, numbytes, actbuffer);//读otherid
-			if( strlen(actbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-
-			add();
+			if( mysql_add(idbuffer, pwdbuffer, actbuffer) ) {
+				send(connectfd, "添加好友成功", strlen( "添加好友成功" ), 0);
+				}else {
+					send(connectfd, "添加好友失败", strlen( "添加好友失败" ), 0);
+			}
 			break;
 		case 5://有人要发信息
-			read_once(connectfd, numbytes, idbuffer);//读id
-			if( strlen(idbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-
-			read_once(connectfd, numbytes, pwdbuffer);//读pwd
-			if( strlen(pwdbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-
-			read_once(connectfd, numbytes, actbuffer);//读otherid
-			if( strlen(actbuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
+			read_id_pwd_otherid(connectfd,numbytes, idbuffer, pwdbuffer, actbuffer, 1);
 
 			read_once(connectfd, numbytes, messagebuffer);//读message
-			//if( strlen(messagebuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-			//read_id_oid_message(connectfd,numbytes,idbuffer,pwdbuffer,messagebuffer);//这里吧pwd当做otheridbuffer来用了
-			//对上面收到的信息进行处理
-			
-			//sendmessage(idbuffer,pwdbuffer,messagebuffer);
+			if(  mysql_send_message(idbuffer, pwdbuffer, actbuffer, messagebuffer)  ) {
+				send(connectfd, "发送消息成功", strlen( "发送消息成功" ), 0);
+				}else {
+					send(connectfd, "发送消息失败", strlen( "发送消息失败" ), 0);
+			}
 			break;
 		case 6://有人要发送文件
 			read_once(connectfd, numbytes, messagebuffer);//读filename
 			if( strlen(messagebuffer) > 0 ) send(connectfd,"1",2,0);//发送确认信息回去
-			int write_ok = write_file(connectfd, messagebuffer);
-			printf("write_ok = %d", write_ok );
-
-			printf("[+]Data written in the file successfully.\n");
+			if( write_file(connectfd, messagebuffer ) ){
+				send(connectfd, "发送文件成功", strlen( "发送文件成功" ), 0);
+				}else {
+					send(connectfd, "发送文件失败", strlen( "发送文件失败" ), 0);
+			}
+			break;
+		case 7://同步消息
+			read_id_pwd_otherid(connectfd, numbytes, idbuffer, pwdbuffer, actbuffer, 0);
+			memset( messagebuffer, 0, sizeof(messagebuffer) );
+			if( mysql_find_message_by_useid( idbuffer, messagebuffer) ) {
+				send(connectfd, messagebuffer, strlen( messagebuffer ), 0);
+			}else {
+				send(connectfd, "查询消息失败 || 无结果", strlen( "查询消息失败 || 无结果" ), 0);
+			}
+			break;
+		case 8://quit
+			read_id_pwd_otherid(connectfd, numbytes, idbuffer, pwdbuffer, actbuffer, 0);
+			if( mysql_set_stat(idbuffer, pwdbuffer, 0) ) {
+					send(connectfd, "退出成功", strlen( "退出成功" ), 0);
+				}else {
+					send(connectfd, "退出失败", strlen( "退出失败" ), 0);
+			}
 			break;
 		default :
 			default_branch();
@@ -171,7 +201,16 @@ void action(int connectfd, int *numbytes, char *idbuffer,char *pwdbuffer,char *a
 	}
 }
 
-//先读action，在调用action：根据action调用相应的业务函数
+/**
+ * @brief 从connectfd读action，再调用action
+ * 
+ * @param connectfd 
+ * @param numbytes 
+ * @param idbuffer 
+ * @param pwdbuffer 
+ * @param actbuffer 
+ * @param messagebuffer 
+ */
 void read_input(int connectfd,int *numbytes, char *idbuffer, char *pwdbuffer, char *actbuffer,char *messagebuffer){
 	printf("接收action-->argv[2]\n");
 	recvdata(connectfd,numbytes,actbuffer);
@@ -181,50 +220,39 @@ void read_input(int connectfd,int *numbytes, char *idbuffer, char *pwdbuffer, ch
 	action(connectfd,numbytes,idbuffer,pwdbuffer,actbuffer,messagebuffer);
 }
 
+/**
+ * @brief 线程创建后走start_routine，然后这里进行一些线程变量的初始化
+ * 
+ * @param connectfd 
+ * @param client 
+ */
 void process_cli(int connectfd,struct sockaddr_in client){
 	char sendbuffer[MAXDATASIZE];
 	char pwdbuffer[MAXDATASIZE];
 	char idbuffer[MAXDATASIZE];
 	char actbuffer[MAXDATASIZE];
-	char messagebuffer[MAXDATASIZE];
-	int numbytes;
+	char messagebuffer[4096];
+	int numbytes = 0;
 	
 	read_input(connectfd,&numbytes,idbuffer,pwdbuffer,actbuffer,messagebuffer);
-	/*1.
-	//第一次调用的人，必须给TSD创建key
-	pthread_once(&once,thread_init);
-	
-	void *data;//定义数据指针
-	data = pthread_getspecific(Key);//绑定数据
-	if(data == NULL){
-		data = malloc(sizeof(char)*(numbytes+1));//分配数据空间
-		pthread_setspecific(Key,(void*)data);//绑定TSD数据
-	}
-	memcpy(data,actbuffer,sizeof(char)*(numbytes+1));//memcpy 向data中拷贝数据,这里拷贝的act，返回的也是act
 
-
-	send(connectfd,(char*)pthread_getspecific(Key),sizeof((char*)pthread_getspecific(Key)),0);*/
-	send(connectfd, actbuffer, strlen(actbuffer), 0);
-
+	//send(connectfd, actbuffer, strlen(actbuffer), 0);
 }
 
 void *start_routine(void *arg){
 	ARG *info;
 	info = (ARG*)arg;
-	printf("This is pthread_creat server,!!!!!start_routine here server-end!!!!!,you got a connection form %s ,and port is %d\n",inet_ntoa((info->client).sin_addr),htons((info->client).sin_port));
+	printf("This is pthread_creat server,!!!!!start_routine here ,you got a connection form %s ,and port is %d\n",inet_ntoa((info->client).sin_addr),htons((info->client).sin_port));
 	process_cli(info->connectfd,info->client);
 	pthread_exit(NULL);
 }
 
 int main()
 {
-	//printf("query statu:%d\n",mysql_find_user_by_useid("5"));
 	mysql_output_table("user");
 	mysql_output_table("friend");
 	mysql_output_table("message");
-	
-//	Linklist_User *head,*tail;
-//	initdlinklist(head,tail);	   
+
 	pid_t pid;
 	int sockfd,connectfd;
     struct sockaddr_in server, client;
@@ -250,7 +278,6 @@ int main()
 	}
 	sin_size = sizeof(client);
 
-	//2. err = pthread_key_create(&Key,destr);
 
 	while(1){
 		ARG *arg;
