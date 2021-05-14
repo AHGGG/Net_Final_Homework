@@ -11,7 +11,7 @@
 
 #define PORT 		12344
 #define MAXDATASIZE	100
-
+//
 int main(int argc, char *argv[])
 {	
 	int fd, numbytes,connResult;
